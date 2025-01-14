@@ -11,6 +11,8 @@
 #include <QIcon>
 #include <QSettings>
 #include <QPainter>
+#include <QDBusConnection>
+#include <QDBusConnectionInterface>
 
 #define PLUGIN_STATE_KEY    "enable"
 
@@ -78,8 +80,14 @@ bool OnboardPlugin::pluginIsDisable()
 const QString OnboardPlugin::itemCommand(const QString &itemKey)
 {
     Q_UNUSED(itemKey);
-
-    return QString("dbus-send --print-reply --dest=org.onboard.Onboard /org/onboard/Onboard/Keyboard org.onboard.Onboard.Keyboard.ToggleVisible");
+    auto ifc = QDBusConnection::sessionBus().interface();
+    
+    return QStringLiteral(
+        "dbus-send --print-reply --dest=org.onboard.Onboard /org/onboard/Onboard/Keyboard org.onboard.Onboard.Keyboard.%1"
+    ).arg(
+        ifc->isServiceRegistered(QStringLiteral("org.onboard.Onboard"))
+        ? QStringLiteral("ToggleVisible") : QStringLiteral("Show")
+    );
 }
 
 void OnboardPlugin::invokedMenuItem(const QString &itemKey, const QString &menuId, const bool checked)
@@ -138,16 +146,8 @@ void OnboardPlugin::pluginSettingsChanged()
 
 QIcon OnboardPlugin::icon(const DockPart &dockPart, DGuiApplicationHelper::ColorType themeType)
 {
-    if (dockPart == DockPart::DCCSetting) {
-        if (themeType == DGuiApplicationHelper::ColorType::LightType)
-            return QIcon(":/icons/icon/dcc_keyboard.svg");
-
-        QPixmap pixmap(":/icons/icon/dcc_keyboard.svg");
-        QPainter pa(&pixmap);
-        pa.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        pa.fillRect(pixmap.rect(), Qt::white);
-        return pixmap;
-    }
+    if (dockPart == DockPart::DCCSetting)
+        return QIcon(":/icons/icon/dcc_keyboard.svg");
 
     if (dockPart == DockPart::QuickPanel)
         return m_onboardItem->iconPixmap(QSize(24, 24), themeType);

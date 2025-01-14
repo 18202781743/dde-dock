@@ -417,13 +417,13 @@ PluginsItemInterface *DockPluginController::pluginInterAt(QObject *destItem)
 void DockPluginController::startLoader(PluginLoader *loader)
 {
     connect(loader, &PluginLoader::finished, loader, &PluginLoader::deleteLater, Qt::QueuedConnection);
-    connect(loader, &PluginLoader::pluginFounded, this, [ = ](const QString &pluginFile) {
+    connect(loader, &PluginLoader::pluginFound, this, [ = ](const QString &pluginFile) {
         QPair<QString, PluginsItemInterface *> pair;
         pair.first = pluginFile;
         pair.second = nullptr;
         m_pluginLoadMap.insert(pair, false);
     });
-    connect(loader, &PluginLoader::pluginFounded, this, &DockPluginController::loadPlugin, Qt::QueuedConnection);
+    connect(loader, &PluginLoader::pluginFound, this, &DockPluginController::loadPlugin, Qt::QueuedConnection);
 
     int delay = Utils::SettingValue("com.deepin.dde.dock", "/com/deepin/dde/dock/", "delay-plugins-time", 0).toInt();
     QTimer::singleShot(delay, loader, [ = ] { loader->start(QThread::LowestPriority); });
@@ -541,9 +541,7 @@ void DockPluginController::loadPlugin(const QString &pluginFile)
     // NOTE(justforlxz): 插件的所有初始化工作都在init函数中进行，
     // loadPlugin函数是按队列执行的，initPlugin函数会有可能导致
     // 函数执行被阻塞。
-    QTimer::singleShot(1, this, [ = ] {
-        initPlugin(interface);
-    });
+    QMetaObject::invokeMethod(this, std::bind(&DockPluginController::initPlugin, this, interface), Qt::QueuedConnection);
 }
 
 void DockPluginController::initPlugin(PluginsItemInterface *interface)

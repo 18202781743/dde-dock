@@ -41,6 +41,7 @@ public:
     bool shouldShowOnDock(WindowInfoBase *info);
     void setDdeLauncherVisible(bool visible);
     void setTrayGridWidgetVisible(bool visible);
+    void setPopupVisible(bool visible);
     QString getWMName();
     void setWMName(QString name);
     void setPropHideState(HideState state);
@@ -86,6 +87,7 @@ public:
     void setIconSize(uint size);
     int getPosition();
     void setPosition(int position);
+    uint windowMargin() const;
     uint getShowTimeout();
     void setShowTimeout(uint timeout);
     uint getWindowSizeEfficient();
@@ -127,6 +129,7 @@ public:
 
     void previewWindow(uint xid);
     void cancelPreviewWindow();
+    bool preventDockAutoHide() const;
 
 Q_SIGNALS:
     void serviceRestarted();
@@ -136,6 +139,7 @@ Q_SIGNALS:
     void frontendWindowRectChanged(const QRect &dockRect);
     void showRecentChanged(bool);
     void showMultiWindowChanged(bool);
+    void windowMarginChanged(uint);
 
 public Q_SLOTS:
     void updateHideState(bool delay);
@@ -177,6 +181,7 @@ private:
     ForceQuitAppMode m_forceQuitAppStatus; // 强制退出应用状态
     bool m_ddeLauncherVisible;
     bool m_trayGridWidgetVisible;
+    bool m_popupVisible;
 
     Entries *m_entries;   // 所有应用实例
     X11Manager *m_x11Manager;     // X11窗口管理

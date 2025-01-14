@@ -13,6 +13,8 @@
 #include <QJsonObject>
 #include <QMetaMethod>
 #include <QDBusAbstractInterface>
+#include <QMetaObject>
+#include <QUrl>
 
 MediaPlayerModel::MediaPlayerModel(QObject *parent)
     : QObject(parent)
@@ -56,42 +58,22 @@ MediaPlayerModel::PlayStatus MediaPlayerModel::status()
 
 const QString MediaPlayerModel::name()
 {
-    if (m_mediaInter) {
-        Dict data = m_mediaInter->metadata();
-        return data["xesam:title"].toString();
-    }
-
-    return QString();
+    return m_name;
 }
 
 const QString MediaPlayerModel::iconUrl()
 {
-    if (m_mediaInter) {
-        Dict data = m_mediaInter->metadata();
-        return data["mpris:artUrl"].toString();
-    }
-
-    return QString();
+    return m_icon;
 }
 
 const QString MediaPlayerModel::album()
 {
-    if (m_mediaInter) {
-        Dict data = m_mediaInter->metadata();
-        return data["xesam:album"].toString();
-    }
-
-    return QString();
+    return m_album;
 }
 
 const QString MediaPlayerModel::artist()
 {
-    if (m_mediaInter) {
-        Dict data = m_mediaInter->metadata();
-        return data["xesam:artist"].toString();
-    }
-
-    return QString();
+    return m_artist;
 }
 
 void MediaPlayerModel::setStatus(const MediaPlayerModel::PlayStatus &stat)
@@ -122,87 +104,149 @@ void MediaPlayerModel::playNext()
         m_mediaInter->Next();
 }
 
+void MediaPlayerModel::updateMetadata()
+{
+    if (!m_mediaInter)
+        return;
+
+    Dict v = m_mediaInter->metadata();
+    m_name = v.value("xesam:title").toString();
+    m_icon = v.value("mpris:artUrl").toString();
+    m_album = v.value("xesam:album").toString();
+    m_artist = v.value("xesam:artist").toString();
+
+    auto getName = [&v](const QString &service){
+        if (service.contains("vlc", Qt::CaseInsensitive)) {
+            const QString &url = v.value("xesam:url").toString();
+            if (!url.isEmpty())
+                return QUrl(url).fileName();
+        }
+
+        return tr("Unknown");
+    };
+    auto getIcon = [](const QString &service){
+        QMap<QString, QString> serv2Icon = {
+            {"vlc", "vlc"},
+            {"chromium", "chrome"},
+            {"firefox", "firefox"},
+            {"movie", "video"},
+            {"music", "music"}
+        };
+
+        for(auto k : serv2Icon.keys())
+            if (service.contains(k, Qt::CaseInsensitive))
+                return serv2Icon.value(k);
+
+        return QString("music");
+    };
+
+    const QString &service = m_mediaInter->service();
+    if (m_name.isEmpty())
+        m_name = getName(service);
+
+    if (m_icon.isEmpty())
+        m_icon = getIcon(service);
+
+    if (m_album.isEmpty())
+        m_album = tr("Unknown");
+    if (m_artist.isEmpty())
+        m_artist = tr("Unknown");
+
+    Q_EMIT MediaPlayerModel::metadataChanged();
+}
+
+void MediaPlayerModel::onServiceDiscovered(const QString &service)
+{
+    auto mediaInter = new MediaPlayerInterface(service, "/org/mpris/MediaPlayer2",
+                                               QDBusConnection::sessionBus(), this);
+    // 影院不太希望被控制。。canShowInUI:false
+    if (!mediaInter->canControl() || !mediaInter->canShowInUI()) {
+        delete mediaInter;
+        return;
+    }
+
+    if (!m_mprisServices.contains(service))
+        m_mprisServices << service;
+
+    m_isActived = !m_mprisServices.isEmpty();
+
+    if (m_mediaInter && m_mediaInter->service() == service) {
+        Q_EMIT startStop(m_isActived);
+        delete mediaInter;
+        return;
+    }
+
+    if (m_mediaInter)
+        delete m_mediaInter;
+
+    m_mediaInter = mediaInter;
+
+    updateMetadata();
+
+    connect(m_mediaInter, &MediaPlayerInterface::PlaybackStatusChanged, this, [ this ] {
+        Q_EMIT statusChanged(convertStatus(m_mediaInter->playbackStatus()));
+    });
+    connect(m_mediaInter, &MediaPlayerInterface::MetadataChanged, this, &MediaPlayerModel::updateMetadata);
+
+    Q_EMIT startStop(m_isActived);
+}
+
+void MediaPlayerModel::onServiceDisappears(const QString &service)
+{
+    if (!m_mprisServices.contains(service))
+        return;
+
+    m_mprisServices.removeAll(service);
+    m_isActived = !m_mprisServices.isEmpty();
+
+    if (m_mediaInter && m_mediaInter->service() == service) {
+        delete m_mediaInter;
+        m_mediaInter = nullptr;
+    }
+
+    // 退出当前播放器后，继续控制上一个播放器
+    if (m_isActived)
+        return onServiceDiscovered(m_mprisServices.last());
+
+    Q_EMIT startStop(m_isActived);
+}
+
 void MediaPlayerModel::initMediaPlayer()
 {
     QDBusInterface dbusInter("org.freedesktop.DBus", "/", "org.freedesktop.DBus", QDBusConnection::sessionBus(), this);
     QDBusPendingCall call = dbusInter.asyncCall("ListNames");
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
     connect(watcher, &QDBusPendingCallWatcher::finished, [ = ] {
-        m_serviceName.clear();
+        m_mprisServices.clear();
         if (call.isError())
             return;
 
         QDBusReply<QStringList> reply = call.reply();
         const QStringList &serviceList = reply.value();
-
         for (const QString &serv : serviceList) {
             if (!serv.startsWith("org.mpris.MediaPlayer2"))
                 continue;
 
-            QDBusInterface serviceInterface(serv, "/org/mpris/MediaPlayer2",
-                                            "org.mpris.MediaPlayer2.Player", QDBusConnection::sessionBus(), this);
-            // 如果开启了谷歌浏览器的后台服务(org.mpris.MediaPlayer2.chromium.instance17352)
-            // 也符合名称要求，但是它不是音乐服务，此时需要判断是否存在这个属性
-            QVariant v = serviceInterface.property("CanPlay");
-            if (!v.isValid() || !v.value<bool>())
-                continue;
-
-            m_serviceName = serv;
-            break;
-        }
-
-        if (!m_serviceName.isEmpty()) {
-            m_isActived = true;
-
-            m_mediaInter = new MediaPlayerInterface(m_serviceName, "/org/mpris/MediaPlayer2", QDBusConnection::sessionBus(), this);
-            connect(m_mediaInter, &MediaPlayerInterface::PlaybackStatusChanged, this, [ this ] {
-                Q_EMIT statusChanged(convertStatus(m_mediaInter->playbackStatus()));
-            });
-            connect(m_mediaInter, &MediaPlayerInterface::MetadataChanged, this, &MediaPlayerModel::metadataChanged);
-            Dict v = m_mediaInter->metadata();
-            m_name = v.value("xesam:title").toString();
-            m_icon = v.value("mpris:artUrl").toString();
-            m_album = v.value("xesam:album").toString();
-            m_artist = v.value("xesam:artist").toString();
-            Q_EMIT startStop(m_isActived);
-            return;
+            onServiceDiscovered(serv);
+//            break;
         }
 
         QDBusConnectionInterface *dbusInterface = QDBusConnection::sessionBus().interface();
         connect(dbusInterface, &QDBusConnectionInterface::serviceOwnerChanged, this,
                 [ = ](const QString &name, const QString &, const QString &newOwner) {
-            if (name.startsWith("org.mpris.MediaPlayer2")) {
-                // 启动了音乐播放
-                m_isActived = !newOwner.isEmpty();
-                if (m_isActived) {
-                    m_serviceName = name;
-                    m_mediaInter = new MediaPlayerInterface(m_serviceName, "/org/mpris/MediaPlayer2", QDBusConnection::sessionBus(), this);
-                    connect(m_mediaInter, &MediaPlayerInterface::PlaybackStatusChanged, this, [ this ] {
-                        Q_EMIT statusChanged(convertStatus(m_mediaInter->playbackStatus()));
-                    });
-                    connect(m_mediaInter, &MediaPlayerInterface::MetadataChanged, this, &MediaPlayerModel::metadataChanged);
-                    Dict v = m_mediaInter->metadata();
-                    m_name = v.value("xesam:title").toString();
-                    m_icon = v.value("mpris:artUrl").toString();
-                    m_album = v.value("xesam:album").toString();
-                    m_artist = v.value("xesam:artist").toString();
-                } else {
-                    if (!m_serviceName.isEmpty()) {
-                        delete m_mediaInter;
-                        m_mediaInter = nullptr;
-                    }
-                    m_serviceName.clear();
-                }
-                Q_EMIT startStop(m_isActived);
+            if (!name.startsWith("org.mpris.MediaPlayer2"))
+                return;
+
+            if (newOwner.isEmpty()) {
+                onServiceDisappears(name);
+            } else {
+                onServiceDiscovered(name);
             }
         });
         connect(dbusInterface, &QDBusConnectionInterface::serviceUnregistered, this,
                 [ = ](const QString &service) {
             if (service.startsWith("org.mpris.MediaPlayer2")) {
-                // 启动了音乐播放
-                m_serviceName.clear();
-                m_isActived = false;
-                Q_EMIT startStop(m_isActived);
+                onServiceDiscovered(service);
             }
         });
     });
@@ -248,8 +292,13 @@ void MediaPlayerInterface::onPropertyChanged(const QDBusMessage &msg)
     const QMetaObject* self = metaObject();
         for (int i = self->propertyOffset(); i < self->propertyCount(); ++i) {
             QMetaProperty p = self->property(i);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+            QGenericArgument value(QMetaType::typeName(p.type()), const_cast<void*>(changedProps[prop].constData()));
+#else
+            QGenericArgument value{p.metaType().name(), const_cast<void*>(changedProps[prop].constData())};
+#endif
             if (p.name() == prop) {
-                Q_EMIT p.notifySignal().invoke(this);
+                Q_EMIT p.notifySignal().invoke(this, value);
             }
         }
     }

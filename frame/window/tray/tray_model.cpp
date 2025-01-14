@@ -67,7 +67,7 @@ TrayModel::TrayModel(bool isIconTray, QObject *parent)
     connect(m_monitor, &TrayMonitor::systemTrayRemoved, this, &TrayModel::onSystemTrayRemoved);
 
     connect(m_monitor, &TrayMonitor::requestUpdateIcon, this, &TrayModel::requestUpdateIcon);
-    connect(DockSettings::instance(), &DockSettings::quickPluginsChanged, this, &TrayModel::onSettingChanged);
+    connect(DockSettings::instance(), &DockSettings::quickTrayNameChanged, this, &TrayModel::onSettingChanged);
 
     m_fixedTrayNames = DockSettings::instance()->getTrayItemsOnDock();
     m_fixedTrayNames.removeDuplicates();
@@ -449,7 +449,7 @@ void TrayModel::removeWinInfo(WinInfo winInfo)
     }
 }
 
-bool TrayModel::inTrayConfig(const QString itemKey) const
+bool TrayModel::inTrayConfig(const QString &itemKey) const
 {
     if (m_isTrayIcon) {
         // 如果是托盘区域，显示所有不在配置中的应用
@@ -575,15 +575,13 @@ void TrayModel::onSniTrayRemoved(const QString &servicePath)
 
             // 如果为输入法，则无需立刻删除，等100毫秒后再观察是否会删除输入法(因为在100毫秒内如果是切换输入法，就会很快发送add信号)
             if (info.isTypeWriting) {
-                QTimer::singleShot(100, this, [ servicePath, this ] {
-                    for (WinInfo info : m_winInfos) {
-                        if (info.servicePath == servicePath) {
-                            int index = m_winInfos.indexOf(info);
-                            beginRemoveRows(QModelIndex(), index, index);
-                            m_winInfos.removeOne(info);
-                            endRemoveRows();
-                        }
-                    }
+                QTimer::singleShot(100, this, [ info, this ] {
+                    int index = m_winInfos.indexOf(info);
+                    beginRemoveRows(QModelIndex(), index, index);
+                    m_winInfos.removeOne(info);
+                    endRemoveRows();
+
+                    Q_EMIT rowCountChanged();
                 });
             } else {
                 beginRemoveRows(QModelIndex(), index, index);

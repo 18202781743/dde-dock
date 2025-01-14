@@ -326,7 +326,7 @@ QIcon DBusDockAdaptors::getSettingIcon(PluginsItemInterface *plugin, QSize &pixm
 {
     auto iconSize = [](const QIcon &icon) {
         QList<QSize> iconSizes = icon.availableSizes();
-        if (iconSizes.size() > 0)
+        if (iconSizes.size() > 0 && !iconSizes[0].isNull() )
             return iconSizes[0];
 
         return defaultIconSize;
@@ -335,7 +335,14 @@ QIcon DBusDockAdaptors::getSettingIcon(PluginsItemInterface *plugin, QSize &pixm
     QIcon icon = plugin->icon(DockPart::DCCSetting, colorType);
     if (!icon.isNull()) {
         pixmapSize = iconSize(icon);
-        return icon;
+
+        QColor c = colorType == DGuiApplicationHelper::LightType ? Qt::black :Qt::white;
+        QPixmap pixmap = icon.pixmap(pixmapSize);
+        QPainter pa(&pixmap);
+        pa.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        pa.fillRect(pixmap.rect(), c);
+
+        return pixmap;
     }
 
     // 如果插件中没有设置图标，则根据插件的类型，获取其他的图标

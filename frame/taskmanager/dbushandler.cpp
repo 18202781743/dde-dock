@@ -22,6 +22,13 @@ DBusHandler::DBusHandler(TaskManager *taskmanager, QObject *parent)
     , m_xEventMonitor(nullptr)
     , m_launcher(new org::deepin::dde::Launcher1(launcherService, launcherPath, QDBusConnection::sessionBus(), this))
 {
+    QDBusInterface *interAM = new QDBusInterface(ApplicationManager1DBusName, "/org/desktopspec/ApplicationManager1", "org.desktopspec.DBus.ObjectManager", QDBusConnection::sessionBus(), this);
+    if (interAM->isValid()) {
+        connect(interAM, SIGNAL(InterfacesRemoved(const QDBusObjectPath &, const QStringList &)), this, SIGNAL(appUninstalled(const QDBusObjectPath &, const QStringList &)));
+    } else {
+        qWarning() << "The interface of AM is invalid:" << interAM->lastError();
+    }
+
     connect(m_wmSwitcher, &org::deepin::dde::WMSwitcher1::WMChanged, this, [&](QString name) {m_taskmanager->setWMName(name);});
     if (!isWaylandSession()) {
         m_xEventMonitor = new org::deepin::dde::XEventMonitor1("org.deepin.dde.XEventMonitor1", "/org/deepin/dde/XEventMonitor1", QDBusConnection::sessionBus(), this);
@@ -32,6 +39,16 @@ DBusHandler::DBusHandler(TaskManager *taskmanager, QObject *parent)
     connect(m_launcher,static_cast<void (org::deepin::dde::Launcher1::*)(bool)>(&org::deepin::dde::Launcher1::VisibleChanged), this, [=] (const bool visible){
         m_taskmanager->setDdeLauncherVisible(visible);
         m_taskmanager->updateHideState(true);
+    });
+
+    // try to active bamf in another thread
+    QtConcurrent::run([ = ] {
+        QDBusInterface bamfInterface(
+            QStringLiteral("org.ayatana.bamf"),
+            QStringLiteral("/org/ayatana/bamf/matcher"),
+            QStringLiteral("org.ayatana.bamf.matcher"),
+            QDBusConnection::sessionBus()
+        );
     });
 }
 

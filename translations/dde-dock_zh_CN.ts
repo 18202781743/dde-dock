@@ -137,51 +137,21 @@
     </message>
 </context>
 <context>
+    <name>DBusHandler</name>
+    <message>
+        <source>failed to dock </source>
+        <translation>无法驻留 </translation>
+    </message>
+    <message>
+        <source>Unrecognized application, unable to dock</source>
+        <translation>未能识别的软件，无法进行驻留</translation>
+    </message>
+</context>
+<context>
     <name>DateTimeDisplayer</name>
     <message>
-        <source>12-hour time</source>
-        <translation>12小时制</translation>
-    </message>
-    <message>
-        <source>24-hour time</source>
-        <translation>24小时制</translation>
-    </message>
-    <message>
         <source>Time settings</source>
         <translation>时间设置</translation>
-    </message>
-</context>
-<context>
-    <name>DatetimePlugin</name>
-    <message>
-        <source>Datetime</source>
-        <translation>时间</translation>
-    </message>
-    <message>
-        <source>12-hour time</source>
-        <translation>12小时制</translation>
-    </message>
-    <message>
-        <source>24-hour time</source>
-        <translation>24小时制</translation>
-    </message>
-    <message>
-        <source>Time settings</source>
-        <translation>时间设置</translation>
-    </message>
-</context>
-<context>
-    <name>DisplayPlugin</name>
-    <message>
-        <source>Brightness</source>
-        <translation>亮度</translation>
-    </message>
-</context>
-<context>
-    <name>DevCollaborationWidget</name>
-    <message>
-        <source>PC collaboration</source>
-        <translation>电脑协同</translation>
     </message>
 </context>
 <context>
@@ -204,17 +174,51 @@
     </message>
 </context>
 <context>
+    <name>DisplayPlugin</name>
+    <message>
+        <source>Brightness</source>
+        <translation>亮度</translation>
+    </message>
+</context>
+<context>
     <name>DisplaySettingWidget</name>
     <message>
-        <source>Multi-Screen Collaboration</source>
-        <translation>电脑协同设置</translation>
+        <source>Display Settings</source>
+        <translation>显示设置</translation>
     </message>
 </context>
 <context>
     <name>DockPluginController</name>
     <message>
         <source>The plugin %1 is not compatible with the system.</source>
-        <translation>The plugin %1 is not compatible with the system.</translation>
+        <translation>插件%1和系统版本不兼容。</translation>
+    </message>
+</context>
+<context>
+    <name>Entry</name>
+    <message>
+        <source>Open</source>
+        <translation>打开</translation>
+    </message>
+    <message>
+        <source>Close All</source>
+        <translation>关闭所有</translation>
+    </message>
+    <message>
+        <source>Force Quit</source>
+        <translation>强制退出</translation>
+    </message>
+    <message>
+        <source>Dock</source>
+        <translation>驻留</translation>
+    </message>
+    <message>
+        <source>Undock</source>
+        <translation>移除驻留</translation>
+    </message>
+    <message>
+        <source>All Windows</source>
+        <translation>所有窗口</translation>
     </message>
 </context>
 <context>
@@ -233,6 +237,13 @@
     <message>
         <source>Launcher</source>
         <translation>启动器</translation>
+    </message>
+</context>
+<context>
+    <name>MediaPlayerModel</name>
+    <message>
+        <source>Unknown</source>
+        <translation>未知</translation>
     </message>
 </context>
 <context>
@@ -299,6 +310,33 @@
     <message>
         <source>Undock</source>
         <translation>移除驻留</translation>
+    </message>
+</context>
+<context>
+    <name>NotificationPlugin</name>
+    <message>
+        <source>Notification</source>
+        <translation>通知</translation>
+    </message>
+    <message>
+        <source>No messages</source>
+        <translation>暂无新消息</translation>
+    </message>
+    <message>
+        <source>Notification settings</source>
+        <translation>通知设置</translation>
+    </message>
+    <message>
+        <source>Notifications</source>
+        <translation>条通知</translation>
+    </message>
+    <message>
+        <source>Turn off DND mode</source>
+        <translation>关闭勿扰模式</translation>
+    </message>
+    <message>
+        <source>Turn on DND mode</source>
+        <translation>开启勿扰模式</translation>
     </message>
 </context>
 <context>
@@ -462,44 +500,6 @@
     <message>
         <source>The Dock is in safe mode, please exit to show it properly</source>
         <translation>任务栏已进入安全模式，退出安全模式后即可正常显示</translation>
-    </message>
-</context>
-<context>
-    <name>Entry</name>
-    <message>
-        <source>Open</source>
-        <translation>打开</translation>
-    </message>
-    <message>
-        <source>Close All</source>
-        <translation>关闭所有</translation>
-    </message>
-    <message>
-        <source>Force Quit</source>
-        <translation>强制退出</translation>
-    </message>
-    <message>
-        <source>Dock</source>
-        <translation>驻留</translation>
-    </message>
-    <message>
-        <source>Undock</source>
-        <translation>移除驻留</translation>
-    </message>
-    <message>
-        <source>All Windows</source>
-        <translation>所有窗口</translation>
-    </message>
-</context>
-<context>
-    <name>DBusHandler</name>
-    <message>
-        <source>failed to dock </source>
-        <translation>无法驻留 </translation>
-    </message>
-    <message>
-        <source>Unrecognized application, unable to dock</source>
-        <translation>未能识别的软件，无法进行驻留</translation>
     </message>
 </context>
 </TS>

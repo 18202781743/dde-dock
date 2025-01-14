@@ -54,10 +54,13 @@ Q_SIGNALS:
 private:
     void initMediaPlayer();
     PlayStatus convertStatus(const QString &stat);
+    void onServiceDiscovered(const QString &service);
+    void onServiceDisappears(const QString &service);
+    void updateMetadata();
 
 private:
     bool m_isActived;
-    QString m_serviceName;
+    QStringList m_mprisServices;
     QString m_name;
     QString m_icon;
     QString m_album;
@@ -98,6 +101,18 @@ public:
     inline Dict metadata() const
     { return qvariant_cast<Dict>(property("Metadata")); }
 
+    Q_PROPERTY(bool CanControl READ canControl NOTIFY CanControlChanged)
+    inline bool canControl() const
+    { return qvariant_cast< bool >(property("CanControl")); }
+
+    // from dtkwidget dbusmpris.h
+    Q_PROPERTY(bool CanShowInUI READ canShowInUI NOTIFY CanShowInUIChanged)
+    inline bool canShowInUI() const
+    {
+        QVariant showInUI = property("CanShowInUI");
+        // 属性有效且为假表示不能控制  无效或为真表示可以控制
+        return showInUI.isValid() ? showInUI.toBool() : true;
+    }
     Q_PROPERTY(bool CanGoNext READ canGoNext NOTIFY CanGoNextChanged)
     inline bool canGoNext() const
     { return qvariant_cast< bool >(property("CanGoNext")); }
@@ -116,6 +131,8 @@ public:
 
 Q_SIGNALS:
     void MetadataChanged();
+    void CanControlChanged(bool  value);
+    void CanShowInUIChanged(bool value);
     void CanGoNextChanged();
     void CanGoPreviousChanged();
     void CanPauseChanged();

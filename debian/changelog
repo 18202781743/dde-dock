@@ -1,3 +1,135 @@
+dde-dock (6.0.37) unstable; urgency=medium
+
+  * release 6.0.37
+  * fix linuxdeepin/developer-center#7612
+
+ -- Mike Chen <chenke@deepin.org>  Wed, 03 Apr 2024 10:22:29 +0800
+
+dde-dock (6.0.36) unstable; urgency=medium
+
+  * release 6.0.36
+  * fix linuxdeepin/developer-center#7222
+  * fix linuxdeepin/developer-center#7207
+  * fix linuxdeepin/developer-center#6454
+
+ -- Mike Chen <chenke@deepin.org>  Wed, 06 Mar 2024 16:50:36 +0800
+
+dde-dock (6.0.35) unstable; urgency=medium
+
+  * feat: adjust dock ui
+
+ -- tsic404 <liuheng@deepin.org>  Thu, 01 Feb 2024 10:58:27 +0800
+
+dde-dock (6.0.34) unstable; urgency=medium
+
+  * fix: dock animation broken (https://github.com/linuxdeepin/developer-center/issues/7143)
+  * fix: dock plugin calculated to an incorrect size (https://github.com/linuxdeepin/developer-center/issues/7127)
+  * fix: dock will not auto hide after set size (https://github.com/linuxdeepin/developer-center/issues/7129)
+  * fix: dock plugin unable to click when in keep hide (https://github.com/linuxdeepin/developer-center/issues/7132)
+  * fix: dock item indicator not update (https://github.com/linuxdeepin/developer-center/issues/7097)
+
+ -- tsic404 <liuheng@deepin.org>  Tue, 30 Jan 2024 16:17:59 +0800
+
+dde-dock (6.0.33) unstable; urgency=medium
+
+  * fix: tmp block uosai in quickpanel
+
+ -- tsic404 <liuheng@deepin.org>  Fri, 26 Jan 2024 14:38:06 +0800
+
+dde-dock (6.0.32) unstable; urgency=medium
+
+  * fix: dock get max size when positionChanged and KeepHide mode (https://github.com/linuxdeepin/developer-center/issues/7040)
+  * fix: dock not remove plugin when fcitx exit (https://github.com/linuxdeepin/developer-center/issues/7080)
+  * fix: dock theme not follow system (https://github.com/linuxdeepin/developer-center/issues/7090)
+
+ -- tsic404 <liuheng@deepin.org>  Thu, 25 Jan 2024 14:30:26 +0800
+
+dde-dock (6.0.31) unstable; urgency=medium
+
+  * fix: error datetime tooltip (https://github.com/linuxdeepin/developer-center/issues/7056)
+  * fix: unable get docked entriy by soft link path (https://github.com/linuxdeepin/developer-center/issues/7033)
+
+ -- tsic404 <liuheng@deepin.org>  Tue, 23 Jan 2024 17:43:44 +0800
+
+dde-dock (6.0.30) unstable; urgency=medium
+
+  * chore: remove Cooperation in display plugin (https://github.com/linuxdeepin/developer-center/issues/7023)
+
+ -- chenhongtao <chenhongtao@deepin.org>  Mon, 22 Jan 2024 17:27:34 +0800
+
+dde-dock (6.0.29) unstable; urgency=medium
+
+  * fix: when no timeformat, tooltip is empty
+
+ -- chenhongtao <chenhongtao@deepin.org>  Mon, 22 Jan 2024 09:47:21 +0800
+
+dde-dock (6.0.28) unstable; urgency=medium
+
+  * fix: the item that removed is exist yet (https://github.com/linuxdeepin/developer-center/issues/4631)
+  * fix: dock wakeup area not changed (https://github.com/linuxdeepin/developer-center/issues/5831)
+  * fix: onboard not to show on first click (https://github.com/linuxdeepin/developer-center/issues/6675)
+  * fix: timedate tips show error (https://github.com/linuxdeepin/developer-center/issues/6674)
+  * fix: quickpanel icon not follow theme (https://github.com/linuxdeepin/developer-center/issues/6263)
+  * fix: disable resize of dock popup window (https://github.com/linuxdeepin/developer-center/issues/6264)
+  * feat: add dbus property window margin
+
+ -- tsic404 <liuheng@deepin.org>  Thu, 18 Jan 2024 09:57:27 +0800
+
+dde-dock (6.0.27) unstable; urgency=medium
+
+  * fix: dock get stucked when launching (https://github.com/linuxdeepin/developer-center/issues/6657)
+  * chore: make uosai default on dock (https://github.com/linuxdeepin/developer-center/issues/6486)
+  * chore: open deepin-calendar instead of dde-widgets when click timedate (https://github.com/linuxdeepin/developer-center/issues/6696)
+  * fix: item context menu not updated
+  * feat: add plugin notification (https://github.com/linuxdeepin/developer-center/issues/6695)
+  * fix: mainwindow hide when popup opens (https://github.com/linuxdeepin/developer-center/issues/4970)
+
+ -- tsic404 <liuheng@deepin.org>  Tue, 09 Jan 2024 13:33:18 +0800
+
+dde-dock (6.0.26) unstable; urgency=medium
+
+  * release 6.0.26
+  * fix #6033 #5719 #5786 #4331
+
+ -- mike <chenke@deepin.org>  Fri, 29 Dec 2023 11:27:59 +0800
+
+dde-dock (6.0.25) unstable; urgency=medium
+
+  * chore: turn on bluetooth loading animation when not start
+  * fix: fix again set dcc dock plugin icon pixelated
+
+ -- chenhongtao <chenhongtao@deepin.org> Wed, 13 Dec 2023 15:31:57 +0800
+
+dde-dock (6.0.24) unstable; urgency=medium
+
+  * chore: use system icon first
+  * fix: dcc dock plugin icon pixelated
+  * fix some coredump issue
+  * fix: brightness silder cannot sroll when is 28
+  * tidy up some log
+
+ -- chenhongtao <chenhongtao@deepin.org> Tue, 28 Nov 2023 10:51:52 +0800
+
+dde-dock (6.0.23) unstable; urgency=medium
+
+  * fix: displayplugin disappear when monitor count changed
+  * fix: tray disappear when drag finished
+  * fix: double tray show afeter drag into expandTray and drag back
+  * chore: remove unused dbus
+  * chore: Adapt time format feature(Issue: https://github.com/linuxdeepin/developer-center/issues/5902)
+
+ -- Deepin Packages Builder <packages@deepin.org>  Thu, 26 Oct 2023 17:25:38 +0800
+
+dde-dock (6.0.22) unstable; urgency=medium
+
+  * fix: a space on tray without trash show
+  * fix: coredump empty tray when switch postion
+  * fix: Can't hide when DockPopupWindow deactivate(Issue: https://github.com/linuxdeepin/developer-center/issues/5405)
+  * fix: datetime size error
+  * fix: tool appAreaWidget visible
+
+ -- tsic404 <liuheng@deepin.org>  Mon, 11 Sep 2023 13:14:25 +0800
+
 dde-dock (6.0.21) unstable; urgency=medium
 
   * fix: add lost windowSizeChanged Signal

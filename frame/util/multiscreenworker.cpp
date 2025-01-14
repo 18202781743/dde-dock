@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "multiscreenworker.h"
+#include "constants.h"
 #include "mainwindow.h"
+#include "taskmanager/taskmanager.h"
 #include "utils.h"
 #include "displaymanager.h"
 #include "traymainwindow.h"
@@ -102,6 +104,10 @@ void MultiScreenWorker::onRegionMonitorChanged(int x, int y, const QString &key)
     if (m_registerKey != key || testState(MousePress))
         return;
 
+    if (m_hideMode == HideMode::KeepHidden) {
+        TaskManager::instance()->setPropHideState(HideState::Show);
+    }
+
     tryToShowDock(x, y);
 }
 
@@ -122,6 +128,10 @@ void MultiScreenWorker::onExtralRegionMonitorChanged(int x, int y, const QString
     // 鼠标移动到任务栏界面之外，停止计时器（延时2秒改变任务栏所在屏幕）
     m_delayWakeTimer->stop();
 
+    if (m_hideMode == HideMode::KeepHidden && !TaskManager::instance()->preventDockAutoHide()) {
+        TaskManager::instance()->setPropHideState(HideState::Hide);
+    }
+
     if (m_hideMode == HideMode::KeepShowing
             || ((m_hideMode == HideMode::KeepHidden || m_hideMode == HideMode::SmartHide) && m_hideState == HideState::Show)) {
         Q_EMIT requestPlayAnimation(DOCK_SCREEN->current(), m_position, Dock::AniAction::Show);
@@ -132,6 +142,7 @@ void MultiScreenWorker::onExtralRegionMonitorChanged(int x, int y, const QString
 
 void MultiScreenWorker::updateDisplay()
 {
+    tryToHideDock();
     //1、屏幕停靠信息，
     //2、任务栏当前显示在哪个屏幕也需要更新
     //3、任务栏高度或宽度调整的拖拽区域，
@@ -181,6 +192,7 @@ void MultiScreenWorker::onPositionChanged(int position)
     qDebug() << "position change from: " << lastPos << " to: " << position;
 #endif
     m_position = static_cast<Position>(position);
+    DockItem::setDockPosition(m_position);
 
     if (m_hideMode == HideMode::KeepHidden || (m_hideMode == HideMode::SmartHide && m_hideState == HideState::Hide)) {
         // 这种情况切换位置,任务栏不需要显示
@@ -192,10 +204,11 @@ void MultiScreenWorker::onPositionChanged(int position)
         // 更新当前屏幕信息,下次显示从目标屏幕显示
         DOCK_SCREEN->updateDockedScreen(getValidScreen(m_position));
         // 需要更新frontendWindowRect接口数据，否则会造成HideState属性值不变
-        emit requestUpdateFrontendGeometry();
+        Q_EMIT requestUpdateFrontendGeometry();
+        Q_EMIT positionChanged(m_position);
     } else {
         // 一直显示的模式才需要显示
-        emit requestUpdatePosition(lastPos, m_position);
+        Q_EMIT requestUpdatePosition(lastPos, m_position);
     }
 }
 
@@ -409,7 +422,7 @@ void MultiScreenWorker::onRequestUpdateRegionMonitor()
     }
 
     // 触屏监控高度固定调整为最大任务栏高度100+任务栏与屏幕边缘间距
-    const int monitHeight = 100 + WINDOWMARGIN;
+    const int monitHeight = 100 + WINDOWMARGIN * qApp->devicePixelRatio();
 
     // 任务栏触屏唤起区域
     m_touchRectList.clear();
@@ -537,7 +550,7 @@ void MultiScreenWorker::onRequestDelayShowDock()
 
 void MultiScreenWorker::initMembers()
 {
-    m_monitorUpdateTimer->setInterval(100);
+    m_monitorUpdateTimer->setInterval(1000);
     m_monitorUpdateTimer->setSingleShot(true);
 
     m_delayWakeTimer->setSingleShot(true);
@@ -891,7 +904,6 @@ void MultiScreenWorker::onDelayAutoHideChanged()
  */
 void MultiScreenWorker::tryToShowDock(int eventX, int eventY)
 {
-    DockItem::setDockPosition(m_position);
     if (qApp->property("DRAG_STATE").toBool() || testState(ChangePositionAnimationStart)) {
         qWarning() << "dock is draging or animation is running";
         return;
@@ -944,5 +956,18 @@ void MultiScreenWorker::tryToShowDock(int eventX, int eventY)
         if ((m_hideMode == HideMode::KeepHidden || m_hideMode == HideMode::SmartHide)) {
             Q_EMIT requestPlayAnimation(currentScreen, m_position, Dock::AniAction::Show);
         }
+    }
+}
+
+void MultiScreenWorker::tryToHideDock()
+{
+    if (hideMode() == HideMode::KeepShowing) {
+        return;
+    }
+
+    auto mousePos = QCursor::pos();
+    const QString &currentScreen = DOCK_SCREEN->current();
+    if (isCursorOut(mousePos.x(), mousePos.y())) {
+        Q_EMIT requestPlayAnimation(currentScreen, m_position, Dock::AniAction::Hide);
     }
 }

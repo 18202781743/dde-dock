@@ -6,11 +6,12 @@
 #ifndef DISPLAY_SETTING_WIDGET_H
 #define DISPLAY_SETTING_WIDGET_H
 
+#include "brightnessadjwidget.h"
+
 #include <QWidget>
 
 class QPushButton;
 class BrightnessAdjWidget;
-class DevCollaborationWidget;
 
 /*!
  * \brief The DisplaySettingWidget class
@@ -21,7 +22,7 @@ class DisplaySettingWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit DisplaySettingWidget(QWidget *parent = nullptr);
+    explicit DisplaySettingWidget(BrightnessModel *model, QWidget *parent = nullptr);
 
 Q_SIGNALS:
     void requestHide();
@@ -32,7 +33,6 @@ private:
 
 private:
     BrightnessAdjWidget *m_brightnessAdjWidget;     // 亮度调整
-    DevCollaborationWidget *m_collaborationWidget;  // 跨端协同
     QPushButton *m_settingBtn;                      // 设置按钮
 };
 

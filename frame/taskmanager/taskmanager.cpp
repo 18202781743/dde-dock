@@ -17,7 +17,6 @@
 #include "waylandmanager.h"
 #include "windowinfobase.h"
 #include "dbusutil.h"
-
 #include "org_deepin_dde_kwayland_plasmawindow.h"
 
 #include <QDir>
@@ -27,9 +26,15 @@
 #include <QPixmap>
 
 #include <cstdint>
+#include <dtkcore_global.h>
+#include <functional>
 #include <iterator>
 #include <memory>
 #include <algorithm>
+
+#include <dutil.h>
+
+DCORE_USE_NAMESPACE
 
 #define SETTING DockSettings::instance()
 #define XCB XCBUtils::instance()
@@ -50,6 +55,7 @@ TaskManager::TaskManager(QObject *parent)
  , m_hideState(HideState::Unknown)
  , m_ddeLauncherVisible(false)
  , m_trayGridWidgetVisible(false)
+ , m_popupVisible(false)
  , m_entries(new Entries(this))
  , m_windowIdentify(new WindowIdentify(this))
  , m_dbusHandler(new DBusHandler(this))
@@ -90,6 +96,20 @@ TaskManager::TaskManager(QObject *parent)
         connect(m_x11Manager, &X11Manager::requestHandleActiveWindowChange, this, &TaskManager::handleActiveWindowChanged);
         connect(m_x11Manager, &X11Manager::requestAttachOrDetachWindow, this, &TaskManager::attachOrDetachWindow);
     }
+    connect(m_dbusHandler, &DBusHandler::appUninstalled, this, [this] (const QDBusObjectPath &objectPath, const QStringList &interfaces) {
+        Q_UNUSED(interfaces)
+        QString desktopFile = DUtil::unescapeFromObjectPath(objectPath.path());
+        QString desktopName = desktopFile.split('/').last();
+        QList<Entry *> entries = m_entries->getEntries();
+        auto desktopEntryIter = std::find_if(entries.begin(), entries.end(), [desktopName] (Entry *entry) {
+             return entry->getDesktopFile().contains(desktopName);
+        });
+        if (desktopEntryIter != entries.end()) {
+            undockEntry(*desktopEntryIter);
+        } else {
+            qWarning() << "The entry which is to be removed is not found!";
+        }
+    });
 }
 
 TaskManager::~TaskManager()
@@ -248,7 +268,7 @@ bool TaskManager::shouldShowOnDock(WindowInfoBase *info)
  */
 void TaskManager::setDdeLauncherVisible(bool visible)
 {
-    m_trayGridWidgetVisible = visible;
+    m_ddeLauncherVisible = visible;
 }
 
 /**
@@ -257,7 +277,12 @@ void TaskManager::setDdeLauncherVisible(bool visible)
  */
 void TaskManager::setTrayGridWidgetVisible(bool visible)
 {
-    m_ddeLauncherVisible = visible;
+    m_trayGridWidgetVisible = visible;
+}
+
+void TaskManager::setPopupVisible(bool visible)
+{
+    m_popupVisible = visible;
 }
 
 /**
@@ -365,7 +390,7 @@ void TaskManager::doActiveWindow(XWindow xid)
     }
 
     XCB->changeActiveWindow(xid);
-    QTimer::singleShot(50, [&] {
+    QTimer::singleShot(50, [xid] {
         XCB->restackWindow(xid);
     });
 }
@@ -629,6 +654,9 @@ void TaskManager::initSettings()
     connect(SETTING, &DockSettings::showRecentChanged, this, &TaskManager::onShowRecentChanged);
     connect(SETTING, &DockSettings::showMultiWindowChanged, this, &TaskManager::onShowMultiWindowChanged);
     connect(SETTING, &DockSettings::displayModeChanged, this, &TaskManager::setDisplayMode);
+    connect(SETTING, &DockSettings::displayModeChanged, this, [this]() {
+        Q_EMIT windowMarginChanged(windowMargin());
+    });
 }
 
 /**
@@ -849,7 +877,7 @@ Entry *TaskManager::getDockedEntryByDesktopFile(const QString &desktopFile)
  */
 bool TaskManager::shouldHideOnSmartHideMode()
 {
-    if (!m_activeWindow || m_ddeLauncherVisible || m_trayGridWidgetVisible)
+    if (!m_activeWindow || m_ddeLauncherVisible || m_trayGridWidgetVisible || m_popupVisible)
         return false;
 
     if (!m_isWayland) {
@@ -949,7 +977,7 @@ QVector<XWindow> TaskManager::getActiveWinGroup(XWindow xid)
  */
 void TaskManager::updateHideState(bool delay)
 {
-    if (m_ddeLauncherVisible || m_trayGridWidgetVisible) {
+    if (preventDockAutoHide()) {
         setPropHideState(HideState::Show);
         return;
     }
@@ -1138,7 +1166,7 @@ void TaskManager::handleActiveWindowChanged(WindowInfoBase *info)
     m_activeWindow = info;
     XWindow winId = m_activeWindow->getXid();
     m_entries->handleActiveWindowChanged(winId);
-    updateHideState(true);
+    QTimer::singleShot(200, std::bind(&TaskManager::updateHideState, this, true));
 }
 
 /**
@@ -1505,6 +1533,11 @@ void TaskManager::setPosition(int position)
     SETTING->setPositionMode(Position(position));
 }
 
+uint TaskManager::windowMargin() const
+{
+    return SETTING->getDisplayMode() == Dock::Efficient ? 0 : 10;
+}
+
 /**
  * @brief TaskManager::getShowTimeout 获取显示超时接口
  * @return
@@ -1572,4 +1605,9 @@ void TaskManager::cancelPreviewWindow()
 bool TaskManager::showMultiWindow() const
 {
     return m_showMultiWindow;
+}
+
+bool TaskManager::preventDockAutoHide() const
+{
+    return m_ddeLauncherVisible || m_popupVisible || m_trayGridWidgetVisible;
 }

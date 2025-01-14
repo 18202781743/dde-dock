@@ -1,4 +1,4 @@
-// Copyright (C) 2022 ~ 2022 Deepin Technology Co., Ltd.
+// Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
 // SPDX-FileCopyrightText: 2018 - 2023 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
@@ -12,6 +12,7 @@
 #include <DFontSizeManager>
 #include <DDBusSender>
 #include <DGuiApplicationHelper>
+#include <DConfig>
 
 #include <QHBoxLayout>
 #include <QPainter>
@@ -31,6 +32,12 @@ static QMap<int, QString> dateFormat{{ 0,"yyyy/M/d" }, { 1,"yyyy-M-d" }, { 2,"yy
                                      { 4,"yyyy-MM-dd" }, { 5,"yyyy.MM.dd" }, { 6,"yy/M/d" }, { 7,"yy-M-d" }, { 8,"yy.M.d" }};
 static QMap<int, QString> timeFormat{{0, "h:mm"}, {1, "hh:mm"}};
 
+const QString localeName_key = "localeName";
+const QString shortDateFormat_key = "shortDateFormat";
+const QString shortTimeFormat_key = "shortTimeFormat";
+const QString longDateFormat_key = "longDateFormat";
+const QString longTimeFormat_key = "longTimeFormat";
+
 DateTimeDisplayer::DateTimeDisplayer(bool showMultiRow, QWidget *parent)
     : QWidget (parent)
     , m_timedateInter(new Timedate("org.deepin.dde.Timedate1", "/org/deepin/dde/Timedate1", QDBusConnection::sessionBus(), this))
@@ -43,6 +50,7 @@ DateTimeDisplayer::DateTimeDisplayer(bool showMultiRow, QWidget *parent)
     , m_currentSize(0)
     , m_oneRow(false)
     , m_showMultiRow(showMultiRow)
+    , m_config(DTK_CORE_NAMESPACE::DConfig::createGeneric("org.deepin.region-format", QString(), this))
 {
     m_tipPopupWindow.reset(new DockPopupWindow);
     // 日期格式变化的时候，需要重绘
@@ -63,6 +71,62 @@ DateTimeDisplayer::DateTimeDisplayer(bool showMultiRow, QWidget *parent)
     if (Utils::IS_WAYLAND_DISPLAY)
         m_tipPopupWindow->setWindowFlags(m_tipPopupWindow->windowFlags() | Qt::FramelessWindowHint);
     m_tipPopupWindow->hide();
+
+    m_locale = QLocale::system();
+    initDConfig();
+}
+
+void DateTimeDisplayer::initDConfig()
+{
+    QLocale currentLocale =  QLocale::system();
+    if (!m_config->isValid())
+        return;
+
+    if (!m_config->isDefaultValue(localeName_key)) {
+        m_locale = QLocale(m_config->value(localeName_key).toString());
+    } else {
+        m_locale = currentLocale;
+    }
+
+    if (!m_config->isDefaultValue(shortDateFormat_key)) {
+        m_shortDateFormatStr = m_config->value(shortDateFormat_key).toString();
+    } else {
+        m_shortDateFormatStr = currentLocale.dateFormat(QLocale::ShortFormat);
+    }
+
+    if (!m_config->isDefaultValue(shortDateFormat_key)) {
+        m_longDateFormatStr = m_config->value(longDateFormat_key).toString();
+    } else {
+        m_longDateFormatStr = currentLocale.dateFormat(QLocale::LongFormat);
+    }
+
+    if (!m_config->isDefaultValue(shortTimeFormat_key)) {
+        m_shortTimeFormatStr = m_config->value(shortTimeFormat_key).toString();
+    } else {
+        m_shortTimeFormatStr = currentLocale.timeFormat(QLocale::ShortFormat);
+    }
+
+    if (!m_config->isDefaultValue(longTimeFormat_key)) {
+        m_longTimeFormatStr = m_config->value(longTimeFormat_key).toString();
+    } else {
+        m_longTimeFormatStr = currentLocale.timeFormat(QLocale::LongFormat);
+    }
+
+    connect(m_config, &DTK_CORE_NAMESPACE::DConfig::valueChanged, this, [this] (const QString &key) {
+        if (key == shortDateFormat_key) {
+            m_shortDateFormatStr = m_config->value(key).toString();
+        } else if (key == shortTimeFormat_key) {
+            m_shortTimeFormatStr = m_config->value(key).toString();
+        } else if (key == localeName_key) {
+            m_locale = QLocale(m_config->value(key).toString());
+        } else if (key == longDateFormat_key) {
+            m_longDateFormatStr = m_config->value(key).toString();
+        } else if (key == longTimeFormat_key) {
+            m_longTimeFormatStr = m_config->value(key).toString();
+        }
+
+        update();
+    });
 }
 
 DateTimeDisplayer::~DateTimeDisplayer()
@@ -134,10 +198,10 @@ void DateTimeDisplayer::mouseReleaseEvent(QMouseEvent *event)
 {
     Q_UNUSED(event);
 
-    DDBusSender().service("org.deepin.dde.Widgets1")
-            .path("/org/deepin/dde/Widgets1")
-            .interface("org.deepin.dde.Widgets1")
-            .method("Toggle").call();
+    DDBusSender().service("com.deepin.Calendar")
+            .path("/com/deepin/Calendar")
+            .interface("com.deepin.Calendar")
+            .method("RaiseWindow").call();
 }
 
 QString DateTimeDisplayer::getTimeString(const Dock::Position &position) const
@@ -145,15 +209,10 @@ QString DateTimeDisplayer::getTimeString(const Dock::Position &position) const
     QString tFormat = QString("hh:mm");
     if (timeFormat.contains(m_shortDateFormat))
         tFormat = timeFormat[m_shortDateFormat];
+    if (!m_shortTimeFormatStr.isEmpty())
+        tFormat = m_shortTimeFormatStr;
 
-    if (!m_use24HourFormat) {
-        if (position == Dock::Top || position == Dock::Bottom)
-            tFormat = tFormat.append(" AP");
-        else
-            tFormat = tFormat.append("\nAP");
-    }
-
-    return QDateTime::currentDateTime().toString(tFormat);
+    return m_locale.toString(QDateTime::currentDateTime(), tFormat);
 }
 
 QString DateTimeDisplayer::getDateString() const
@@ -166,9 +225,12 @@ QString DateTimeDisplayer::getDateString(const Dock::Position &position) const
     QString shortDateFormat = "yyyy-MM-dd";
     if (dateFormat.contains(m_shortDateFormat))
         shortDateFormat = dateFormat.value(m_shortDateFormat);
+    if (!m_shortDateFormatStr.isEmpty())
+        shortDateFormat = m_shortDateFormatStr;
     // 如果是左右方向，则不显示年份
     if (position == Dock::Position::Left || position == Dock::Position::Right) {
-        static QStringList yearStrList{"yyyy/", "yyyy-", "yyyy.", "yy/", "yy-", "yy."};
+        static QStringList yearStrList{"yyyy/", "/yyyy", "yyyy-", "-yyyy", "yyyy.", ".yyyy",
+                                       "yy/", "/yy", "yy-", "-yy", "yy.", ".yy"};
         for (int i = 0; i < yearStrList.size() ; i++) {
             const QString &yearStr = yearStrList[i];
             if (shortDateFormat.contains(yearStr)) {
@@ -178,7 +240,7 @@ QString DateTimeDisplayer::getDateString(const Dock::Position &position) const
         }
     }
 
-    return QDateTime::currentDateTime().toString(shortDateFormat);
+    return m_locale.toString(QDateTime::currentDateTime(), shortDateFormat);
 }
 
 DateTimeDisplayer::DateTimeInfo DateTimeDisplayer::dateTimeInfo(const Dock::Position &position) const
@@ -189,11 +251,6 @@ DateTimeDisplayer::DateTimeInfo DateTimeDisplayer::dateTimeInfo(const Dock::Posi
 
     info.m_time = getTimeString(position);
     info.m_date = getDateString(position);
-
-    if (m_showMultiRow && m_dateFont.pixelSize() + m_timeFont.pixelSize() > height() - 8) {
-        m_dateFont.setPixelSize(height() / 2 - 5);
-        m_timeFont.setPixelSize(height() / 2 - 3);
-    }
 
     // 如果是左右方向
     if (position == Dock::Position::Left || position == Dock::Position::Right) {
@@ -238,12 +295,7 @@ DateTimeDisplayer::DateTimeInfo DateTimeDisplayer::dateTimeInfo(const Dock::Posi
 
 void DateTimeDisplayer::onTimeChanged()
 {
-    const QDateTime currentDateTime = QDateTime::currentDateTime();
-
-    if (m_use24HourFormat)
-        m_tipsWidget->setText(QLocale().toString(currentDateTime.date()) + currentDateTime.toString(" HH:mm:ss"));
-    else
-        m_tipsWidget->setText(QLocale().toString(currentDateTime.date()) + currentDateTime.toString(" hh:mm:ss AP"));
+    m_tipsWidget->setText(m_locale.toString(QDate::currentDate(), m_longDateFormatStr) + QString(" ") + m_locale.toString(QTime::currentTime(), m_longTimeFormatStr));
 
     // 如果时间和日期有一个不等，则实时刷新界面
     if (m_lastDateString != getDateString() || m_lastTimeString != getTimeString())
@@ -252,14 +304,9 @@ void DateTimeDisplayer::onTimeChanged()
 
 void DateTimeDisplayer::onDateTimeFormatChanged()
 {
-    int lastSize = m_currentSize;
     m_shortDateFormat = m_timedateInter->shortDateFormat();
-    m_use24HourFormat = m_timedateInter->use24HourFormat();
     // 此处需要强制重绘，因为在重绘过程中才会改变m_currentSize信息，方便在后面判断是否需要调整尺寸
     repaint();
-    // 如果日期时间的格式发生了变化，需要通知外部来调整日期时间的尺寸
-    if (lastSize != m_currentSize)
-        Q_EMIT requestUpdate();
 }
 
 void DateTimeDisplayer::paintEvent(QPaintEvent *e)
@@ -270,7 +317,6 @@ void DateTimeDisplayer::paintEvent(QPaintEvent *e)
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    
 
     int timeAlignFlag = Qt::AlignCenter;
     int dateAlignFlag = Qt::AlignCenter;
@@ -353,17 +399,6 @@ void DateTimeDisplayer::updateFont() const
 
 void DateTimeDisplayer::createMenuItem()
 {
-    QAction *timeFormatAction = new QAction(this);
-    timeFormatAction->setText(m_use24HourFormat ? tr("12-hour time"): tr("24-hour time"));
-
-    connect(timeFormatAction, &QAction::triggered, this, [ = ] {
-        bool use24hourformat = !m_use24HourFormat;
-        // 此时调用 dbus 更新时间格式但是本地 m_use24HourFormat 未更新，所以需要使用新变量，设置新格式
-        m_timedateInter->setUse24HourFormat(use24hourformat);
-        timeFormatAction->setText(use24hourformat ? tr("12-hour time") : tr("24-hour time"));
-    });
-    m_menu->addAction(timeFormatAction);
-
     if (!QFile::exists(ICBC_CONF_FILE)) {
         QAction *timeSettingAction = new QAction(tr("Time settings"), this);
         connect(timeSettingAction, &QAction::triggered, this, [ = ] {
@@ -416,6 +451,7 @@ QString DateTimeDisplayer::getTimeString() const
 
 void DateTimeDisplayer::updateLastData(const DateTimeInfo &info)
 {
+    int lastSize = m_currentSize;
     m_lastDateString = info.m_date;
     m_lastTimeString = info.m_time;
     QSize dateTimeSize = suitableSize();
@@ -423,6 +459,9 @@ void DateTimeDisplayer::updateLastData(const DateTimeInfo &info)
         m_currentSize = dateTimeSize.width();
     else
         m_currentSize = dateTimeSize.height();
+    // 如果日期时间的格式发生了变化，需要通知外部来调整日期时间的尺寸
+    if (lastSize != m_currentSize)
+        Q_EMIT requestUpdate();
 }
 
 bool DateTimeDisplayer::event(QEvent *event)

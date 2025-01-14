@@ -9,6 +9,7 @@
 #include "dbusutil.h"
 #include "dockscreen.h"
 #include "displaymanager.h"
+#include "taskmanager/taskmanager.h"
 
 #include <QScreen>
 #include <QApplication>
@@ -77,7 +78,7 @@ void DockPopupWindow::setContent(QWidget *content)
     m_lastWidget = content;
     content->setParent(this);
     content->show();
-    resize(content->sizeHint());
+    setFixedSize(content->sizeHint());
 }
 
 void DockPopupWindow::setExtendWidget(QWidget *widget)
@@ -141,7 +142,7 @@ void DockPopupWindow::show(const int x, const int y)
         displayPoint.setX(qMin(screenRect.x() + screenRect.width() - getContent()->width(), displayPoint.x()));
     }
     move(displayPoint);
-    resize(m_lastWidget->size());
+    setFixedSize(m_lastWidget->size());
     DBlurEffectWidget::show();
     activateWindow();
 }
@@ -172,12 +173,14 @@ void DockPopupWindow::showEvent(QShowEvent *e)
         Utils::updateCursor(this);
     }
 
+    TaskManager::instance()->setPopupVisible(true);
     QTimer::singleShot(1, this, &DockPopupWindow::ensureRaised);
 }
 
 void DockPopupWindow::hideEvent(QHideEvent *event)
 {
     m_extendWidget = nullptr;
+    TaskManager::instance()->setPopupVisible(false);
     Dtk::Widget::DBlurEffectWidget::hideEvent(event);
 }
 
@@ -249,7 +252,7 @@ void DockPopupWindow::onButtonPress(int type, int x, int y, const QString &key)
     // if there is something focus on widget, return
     if (auto focus = qApp->focusWidget()) {
         auto className = QString(focus->metaObject()->className());
-        qDebug() << "Find focused widget, focus className is" << className;
+        //qDebug() << "Find focused widget, focus className is" << className;
         if (className == "QLineEdit") {
             qDebug() << "PopupWindow window will not be hidden";
             return;
